@@ -1,0 +1,76 @@
+#define directionPinX GPIO_NUM_27
+#define stepPinX GPIO_NUM_26
+#define directionPinY GPIO_NUM_12
+#define stepPinY GPIO_NUM_14
+#define limitSwitchPin1 GPIO_NUM_16
+#define limitSwitchPin2 GPIO_NUM_17
+
+//#define stepsPerRevolution 200
+
+// Step counter for motor X
+int stepCountX = 0;
+
+void setup(){
+  pinMode(directionPinX, OUTPUT);
+  pinMode(stepPinX, OUTPUT);
+  pinMode(directionPinY, OUTPUT);
+  pinMode(stepPinY, OUTPUT);
+
+  pinMode(limitSwitchPin1, INPUT);
+  pinMode(limitSwitchPin2, INPUT);
+}
+
+void loop(){
+
+  //homing sequence
+  digitalWrite(directionPinY, HIGH);
+
+  digitalWrite(stepPinY, HIGH);
+  delay(500);
+  digitalWrite(stepPinY,LOW);      
+  delay(500);
+
+  // while(digitalRead(limitSwitchPin1) == LOW){
+  //   digitalWrite(stepPinY, HIGH);
+  //   delay(500);
+  //   digitalWrite(stepPinY,LOW);      
+  //   delay(500);
+  //   stepCountX++;
+  // }
+
+  // //switch direction when limit switch is pressed
+  // digitalWrite(directionPinX, LOW);
+
+  // //reverse direction to other limit switch
+  // while(digitalRead(limitSwitchPin2)==LOW){
+  //   digitalWrite(stepPinX, HIGH);
+  //   delay(500);
+  //   digitalWrite(stepPinX, LOW);
+  //   delay(500);
+  //   stepCountX--;
+  // }
+
+  // //stop x motors
+  // //digitalWrite(directionPinX,LOW);
+  // digitalWrite(stepPinX,LOW);
+  // delay(5000);
+
+  // //rotate by 45 degrees which is 25 pulses
+  // digitalWrite(directionPinY, HIGH);
+  // for (int i = 0; i < 25; i++) {
+  //   digitalWrite(stepPinY, HIGH);
+  //   delay(500);
+  //   digitalWrite(stepPinY, LOW);
+  //   delay(500);
+  // }
+
+  // //stop motors
+  // digitalWrite(directionPinY, LOW);
+  // digitalWrite(stepPinY, LOW);
+
+  // stepCountX = 0;
+
+  while(1){
+  }
+
+}
