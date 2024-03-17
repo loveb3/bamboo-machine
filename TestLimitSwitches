@@ -1,0 +1,44 @@
+#define directionPinX GPIO_NUM_27
+#define stepPinX GPIO_NUM_26
+#define directionPinY GPIO_NUM_12
+#define stepPinY GPIO_NUM_14
+#define limitSwitchPin1 GPIO_NUM_16
+#define limitSwitchPin2 GPIO_NUM_17
+
+#define stepsPerRevolution 200
+
+// Step counter for motor X
+int stepCountX = 0;
+bool isMovingClockwise = true;
+
+void setup(){
+  Serial.begin(115200);
+  pinMode(directionPinX, OUTPUT);
+  pinMode(stepPinX, OUTPUT);
+  pinMode(limitSwitchPin1, INPUT_PULLUP);
+  pinMode(limitSwitchPin2, INPUT_PULLUP); 
+}
+//bool test = true;
+
+void loop() {
+  // Homing sequence
+  digitalWrite(directionPinX, isMovingClockwise ? HIGH : LOW);
+  for (int i = 0; i < stepsPerRevolution; i++) {
+    digitalWrite(stepPinX, HIGH);
+    delayMicroseconds(1200);
+    digitalWrite(stepPinX, LOW);
+    delayMicroseconds(1200);
+  }
+  delay(100); // Delay after homing sequence for stability
+
+  // Check limit switches
+  if (digitalRead(limitSwitchPin1) == LOW) { // Limit switch 1 pressed
+    isMovingClockwise = !isMovingClockwise; // Reverse direction
+    delay(50); // Delay for stability
+  }
+
+  if (digitalRead(limitSwitchPin2) == LOW) { // Limit switch 2 pressed
+    isMovingClockwise = !isMovingClockwise; // Reverse direction
+    delay(50); // Delay for stability
+  }
+}
