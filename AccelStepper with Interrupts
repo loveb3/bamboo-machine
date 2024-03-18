@@ -17,67 +17,75 @@ bool complete = false;
 volatile bool limitSwitch1Pressed = false;
 volatile bool limitSwitch2Pressed = false;
 
-void setup(){
+unsigned long lastDebounceTime1 = 0;
+unsigned long lastDebounceTime2 = 0;
+unsigned long debounceDelay = 150;
+
+void setup() {
+  Serial.begin(115200);
   pinMode(limitSwitch1, INPUT_PULLUP);
   pinMode(limitSwitch2, INPUT_PULLUP);
 
+
   //Values for Gantry Motor
-  stepperX.setMaxSpeed(1000);
-  stepperX.setAcceleration(500);
-  stepperX.setSpeed(500);
+  stepperX.setMaxSpeed(300);
+  stepperX.setAcceleration(200);
+  stepperX.setSpeed(200);
 
    //Values for Manipulator Motor
-  stepperY.setMaxSpeed(1000);
-  stepperY.setAcceleration(500);
-  stepperY.setSpeed(500);
+  stepperY.setMaxSpeed(400);
+  stepperY.setAcceleration(200);
+  stepperY.setSpeed(200);
 
-  //interrupts
+  // //interrupts
   attachInterrupt(digitalPinToInterrupt(limitSwitch1), limitSwitch1ISR, CHANGE);
   attachInterrupt(digitalPinToInterrupt(limitSwitch2), limitSwitch2ISR, CHANGE);
 }
 
-void loop(){
+void loop() {
   //homing sequence
   if(!xHomed){
     stepperX.move(1000); //move some distance towards the manipulator
     stepperX.run();
-    if(limitSwitch1Pressed){  //when switch is pressed stop the motor
+    if(limitSwitch2Pressed){  //when switch is pressed stop the motor
+      Serial.println("Pressed");
       stepperX.stop();
       xHomed = true;  //set homing variable true
-      limitSwitch1Pressed = false; 
+      limitSwitch2Pressed = false; 
     }
   }
   else if(!yMoved){
-    delay(2000);  //wait two seconds after limitswitch 1 is pressed
     stepperY.moveTo(25); //rotate manipulator 45 degrees
     stepperY.run();
-    if(stepperY.distanceToGo() == 0){ //when 45 degrees reach, stop rotating
-      stepperY.stop();
-      yMoved = true;
-    }
-  }
-  else{
-    if(!complete){  //slightly move the gantry away from the pressed limit switch
-      stepperX.moveTo(-100);
-      stepperX.run();
       if(stepperY.distanceToGo() == 0){
+        stepperY.stop();
+        yMoved = true;
+      }
+    }
+  else if(!complete){
+      stepperX.moveTo(-25);
+      stepperX.run();
+      if(stepperX.distanceToGo() == 0){
         stepperX.stop();
         complete = true;
       }
-    }
-  }
+  } 
 }
 
 void limitSwitch1ISR() {
-  delay(20);
-  if(digitalRead(limitSwitch1) == LOW){ //debouncing
-     limitSwitch1Pressed = true;
+  if (millis() - lastDebounceTime1 > debounceDelay) {
+    lastDebounceTime1 = millis();
+    if (digitalRead(limitSwitch1) == LOW) {
+      limitSwitch1Pressed = true;
+    }
   }
 }
 
 void limitSwitch2ISR() {
-  delay(20);
-  if(digitalRead(limitSwitch2) == LOW){ //debouncing
-     limitSwitch2Pressed = true;
+  if (millis() - lastDebounceTime2 > debounceDelay) {
+    lastDebounceTime2 = millis();
+    if (digitalRead(limitSwitch2) == LOW) {
+      limitSwitch2Pressed = true;
+    }
   }
 }
