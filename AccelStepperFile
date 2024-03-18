@@ -1,0 +1,58 @@
+#include <AccelStepper.h>
+
+#define directionPinX GPIO_NUM_27
+#define stepPinX GPIO_NUM_26
+#define directionPinY GPIO_NUM_12
+#define stepPinY GPIO_NUM_14
+#define limitSwitch1 GPIO_NUM_16
+#define limitSwitch2 GPIO_NUM_17
+
+AccelStepper stepperX(AccelStepper::DRIVER, stepPinX, directionPinX);
+AccelStepper stepperY(AccelStepper::DRIVER, stepPinY, directionPinY);
+
+bool xHomed = false;
+bool yMoved = false;
+
+void setup(){
+  pinMode(limitSwitch1, INPUT_PULLUP);
+  pinMode(limitSwitch2, INPUT_PULLUP);
+
+  //Values for Gantry Motor
+  stepperX.setMaxSpeed(1000);
+  stepperX.setAcceleration(500);
+  stepperX.setSpeed(500);
+
+   //Values for Manipulator Motor
+  stepperY.setMaxSpeed(1000);
+  stepperY.setAcceleration(500);
+  stepperY.setSpeed(500);
+}
+
+void loop(){
+  //homing sequence
+  if(!xHomed){
+    stepperX.move(1000); //move some large distance whilel the limit switch is open
+    while(digitalRead(limitSwitch1) == HIGH){ //when limit switch is open, run the motor
+      stepperX.run();
+    }
+    stepperX.stop();//when the limit switch closes, stop the motor
+    xHomed = true;
+    delay(2000);
+  }
+  else if(!yMoved){
+    stepperY.moveTo(25);//rotate the manipulator 45 degrees
+    while(stepperY.distanceToGo() != 0){ //run the motor until 25 pulses has been reached
+      stepperY.run();
+    }
+    stepperY.stop();//stop the manipulator after the rotation
+    yMoved = true;
+  }
+  else{
+    stepperX.move(-100);//move the gantry motor away from the limitswitch as short distance to simulate the next sequence.
+    while(stepperX.distanceToGo() != 0){
+      stepperX.run();
+    }
+    stepperX.stop();
+  }
+  //everything should only run once given the booleans stated above
+}
