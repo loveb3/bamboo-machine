@@ -1,0 +1,91 @@
+#include <AccelStepper.h>
+
+#define directionPinX GPIO_NUM_27
+#define stepPinX GPIO_NUM_26
+#define directionPinY GPIO_NUM_12
+#define stepPinY GPIO_NUM_14
+#define limitSwitch1 GPIO_NUM_16
+#define limitSwitch2 GPIO_NUM_17
+
+AccelStepper stepperX(AccelStepper::DRIVER, stepPinX, directionPinX);
+AccelStepper stepperY(AccelStepper::DRIVER, stepPinY, directionPinY);
+
+bool xHomed = false;
+bool yMoved = false;
+bool complete = false;
+
+volatile bool limitSwitch1Pressed = false;
+volatile bool limitSwitch2Pressed = false;
+
+unsigned long lastDebounceTime1 = 0;
+unsigned long lastDebounceTime2 = 0;
+unsigned long debounceDelay = 150;
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(limitSwitch1, INPUT_PULLUP);
+  pinMode(limitSwitch2, INPUT_PULLUP);
+
+
+  //Values for Gantry Motor
+  stepperX.setMaxSpeed(300);
+  stepperX.setAcceleration(200);
+  stepperX.setSpeed(200);
+
+   //Values for Manipulator Motor
+  stepperY.setMaxSpeed(400);
+  stepperY.setAcceleration(200);
+  stepperY.setSpeed(200);
+
+  // //interrupts
+  attachInterrupt(digitalPinToInterrupt(limitSwitch1), limitSwitch1ISR, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(limitSwitch2), limitSwitch2ISR, CHANGE);
+}
+
+void loop() {
+  //homing sequence
+  if(!xHomed){
+    stepperX.move(1000); //move some distance towards the manipulator
+    stepperX.run();
+    if(limitSwitch2Pressed){  //when switch is pressed stop the motor
+      Serial.println("Pressed");
+      stepperX.stop();
+      xHomed = true;  //set homing variable true
+      limitSwitch2Pressed = false; 
+    }
+  }
+  else if(!yMoved){
+    stepperY.moveTo(25); //rotate manipulator 45 degrees
+    stepperY.run();
+      if(stepperY.distanceToGo() == 0){
+        stepperY.stop();
+        yMoved = true;
+      }
+    }
+  else if(!complete){
+      stepperX.moveTo(-25);
+      stepperX.run();
+      if(stepperX.distanceToGo() == 0){
+        stepperX.stop();
+        complete = true;
+      }
+  } 
+}
+
+void limitSwitch1ISR() {
+  if (millis() - lastDebounceTime1 > debounceDelay) {
+    lastDebounceTime1 = millis();
+    if (digitalRead(limitSwitch1) == LOW) {
+      limitSwitch1Pressed = true;
+    }
+  }
+}
+
+void limitSwitch2ISR() {
+  if (millis() - lastDebounceTime2 > debounceDelay) {
+    lastDebounceTime2 = millis();
+    if (digitalRead(limitSwitch2) == LOW) {
+      limitSwitch2Pressed = true;
+    }
+  }
+}
