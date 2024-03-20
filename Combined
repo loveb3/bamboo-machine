@@ -1,33 +1,30 @@
 #include <AccelStepper.h>
 #include <Encoder.h>
-#include <math.h>
+#include <Math.h>
 
-#define directionPinX 13 // Arduino Uno pin 13
-#define stepPinX 12 // Arduino Uno pin 12
-#define directionPinY 11 // Arduino Uno pin 11
-#define stepPinY 10  // Arduino Uno pin 10
-#define limitSwitch1 2 // Arduino Uno pin 2
-#define limitSwitch2 3  // Arduino Uno pin 3
+#define directionPinX 22 // Arduino Uno pin 13
+#define stepPinX 23 // Arduino Uno pin 12
+#define directionPinY 34 // Arduino Uno pin 11
+#define stepPinY 35  // Arduino Uno pin 10
+#define limitSwitch1 21 // Arduino Uno pin 2
+#define limitSwitch2 20  // Arduino Uno pin 3
+#define limitSwitch3 29
+#define pinA 19
+#define pinB 18
 
-#define pinA 8
-#define pinB 9
-#define limitSwitch3 7
+AccelStepper stepperX(AccelStepper::DRIVER, stepPinX, directionPinX);
+AccelStepper stepperY(AccelStepper::DRIVER, stepPinY, directionPinY);
 
 Encoder myEncoder(pinA, pinB);
 
 long prevPosition = 0; // Store the last encoder position
 int probe = 4;
-
-AccelStepper stepperX(AccelStepper::DRIVER, stepPinX, directionPinX);
-AccelStepper stepperY(AccelStepper::DRIVER, stepPinY, directionPinY);
-
 bool xHomed = false;
 bool yMoved = false;
 bool complete = false;
 int speed = 300;
 int count = 0;
 int distance = 100;
-int cycleCount = 0; // Counter to keep track of cycles
 int xPulsesCount = 0;
 
 volatile bool limitSwitch1Pressed = false;
@@ -38,10 +35,11 @@ unsigned long lastDebounceTime2 = 0;
 unsigned long debounceDelay = 100;
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
   pinMode(limitSwitch1, INPUT_PULLUP);
   pinMode(limitSwitch2, INPUT_PULLUP);
   pinMode(limitSwitch3, INPUT_PULLUP);
+
 
   //Values for Gantry Motor
   stepperX.setMaxSpeed(300);
@@ -54,42 +52,12 @@ void setup() {
   stepperY.setSpeed(200);
 
   // //interrupts
-  attachInterrupt(digitalPinToInterrupt(limitSwitch1), limitSwitch1ISR, FALLING);
-  attachInterrupt(digitalPinToInterrupt(limitSwitch2), limitSwitch2ISR, FALLING);
+  attachInterrupt(digitalPinToInterrupt(limitSwitch1), limitSwitch1ISR, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(limitSwitch2), limitSwitch2ISR, CHANGE);
 }
+int cycleCount = 0; // Counter to keep track of cycles
 
 void loop() {
-  // Homing sequence
-  long newPosition = myEncoder.read(); // Read the current encoder position
-
-  //placeholder value for xPosition
-  float xPosition = xPulsesCount;
-  
-  // Calculate the angle
-  // Each pulse represents 0.6 degrees (360 / 600)
-  float angle = (newPosition * 360.0) / 2400.0;
-  float radius = probe - probe*cos(angle*M_PI/180);
-
-  // For demonstration, let's just print the angle when it changes significantly
-  if (abs(newPosition - prevPosition) > 1) { // Adjust sensitivity as needed
-
-    Serial.print("X Position: ");
-    Serial.print(xPosition, 2); // Print angle with 2 decimal places for precision
-    Serial.print(", Radius: ");
-    Serial.print(radius, 2); // Print angle with 2 decimal places for precision
-    Serial.print(", Angle: ");
-    Serial.println(angle, 2); // Print angle with 2 decimal places for precision  
-    prevPosition = newPosition; // Update the previous position
-  }
-
-  if (digitalRead(limitSwitch3) == LOW) { // Limit switch is pressed
-    myEncoder.write(0); // Reset the encoder's position
-    prevPosition = 0; // Also reset the previous position to avoid immediate repeat prints
-    delay(50); //debounce delay
-  }
-  
-  delay(100); // Delay to manage loop execution and serial print speed
-
   if (!xHomed) {  
     //stepperX.setSpeed(300); // Move some distance towards the manipulator
     if (cycleCount % 2 == 0) {
@@ -116,6 +84,8 @@ void loop() {
       yMoved = true;
       distance += 100; // Increment distance for the next movement
       stepperY.stop();
+      Serial.write('P');
+      delay(5000);
     }
   }
   else if (count != 3 && !complete) {
@@ -142,16 +112,50 @@ void loop() {
       complete = true;
     }
   } 
+
+  long newPosition = myEncoder.read(); // Read the current encoder position
+
+  //placeholder value for xPosition
+  float xPosition = xPulsesCount;
+  
+  // Calculate the angle
+  // Each pulse represents 0.6 degrees (360 / 600)
+  float angle = (newPosition * 360.0) / 2400.0;
+  float radius = probe - probe*cos(angle*M_PI/180);
+
+  //For demonstration, let's just print the angle when it changes significantly
+  if (abs(newPosition - prevPosition) > 1) { // Adjust sensitivity as needed
+
+    Serial.print("X Position: ");
+    Serial.print(xPosition, 2); // Print angle with 2 decimal places for precision
+    Serial.print(", Radius: ");
+    Serial.print(radius, 2); // Print angle with 2 decimal places for precision
+    Serial.print(", Angle: ");
+    Serial.println(angle, 2); // Print angle with 2 decimal places for precision  
+    prevPosition = newPosition; // Update the previous position
+  }
+
+  // if (digitalRead(limitSwitch3) == LOW) { // Limit switch is pressed
+  //   myEncoder.write(0); // Reset the encoder's position
+  //   prevPosition = 0; // Also reset the previous position to avoid immediate repeat prints
+  //   delay(50); //debounce delay
+  // }
 }
 
 void limitSwitch1ISR() {
+  if (millis() - lastDebounceTime1 > debounceDelay) {
+    lastDebounceTime1 = millis();
     if (digitalRead(limitSwitch1) == LOW) {
       limitSwitch1Pressed = true;
     }
+  }
 }
 
 void limitSwitch2ISR() {
+  if (millis() - lastDebounceTime2 > debounceDelay) {
+    lastDebounceTime2 = millis();
     if (digitalRead(limitSwitch2) == LOW) {
       limitSwitch2Pressed = true;
     }
+  }
 }
