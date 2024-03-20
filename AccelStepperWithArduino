@@ -1,0 +1,113 @@
+#include <AccelStepper.h>
+
+#define directionPinX 13 // Arduino Uno pin 13
+#define stepPinX 12 // Arduino Uno pin 12
+#define directionPinY 11 // Arduino Uno pin 11
+#define stepPinY 10  // Arduino Uno pin 10
+#define limitSwitch1 2 // Arduino Uno pin 2
+#define limitSwitch2 3  // Arduino Uno pin 3
+
+AccelStepper stepperX(AccelStepper::DRIVER, stepPinX, directionPinX);
+AccelStepper stepperY(AccelStepper::DRIVER, stepPinY, directionPinY);
+
+bool xHomed = false;
+bool yMoved = false;
+bool complete = false;
+int speed = 300;
+int count = 0;
+int distance = 100;
+
+volatile bool limitSwitch1Pressed = false;
+volatile bool limitSwitch2Pressed = false;
+
+unsigned long lastDebounceTime1 = 0;
+unsigned long lastDebounceTime2 = 0;
+unsigned long debounceDelay = 100;
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(limitSwitch1, INPUT_PULLUP);
+  pinMode(limitSwitch2, INPUT_PULLUP);
+
+
+  //Values for Gantry Motor
+  stepperX.setMaxSpeed(300);
+  stepperX.setAcceleration(100);
+  stepperX.setSpeed(200);
+
+   //Values for Manipulator Motor
+  stepperY.setMaxSpeed(300);
+  stepperY.setAcceleration(300);
+  stepperY.setSpeed(200);
+
+  // //interrupts
+  attachInterrupt(digitalPinToInterrupt(limitSwitch1), limitSwitch1ISR, FALLING);
+  attachInterrupt(digitalPinToInterrupt(limitSwitch2), limitSwitch2ISR, FALLING);
+}
+int cycleCount = 0; // Counter to keep track of cycles
+
+void loop() {
+  // Homing sequence
+  if (!xHomed) {  
+    //stepperX.setSpeed(300); // Move some distance towards the manipulator
+    if (cycleCount % 2 == 0) {
+      //stepperX.setSpeed(-300);
+      stepperX.setSpeed(300); // Move in one direction a short distance
+    }
+    else {
+      stepperX.setSpeed(-300);
+      //stepperX.move(1000); // Move in the opposite direction a short distance
+    }
+    stepperX.run();
+    if (limitSwitch1Pressed) {  // When switch 1 is pressed, stop the motor
+      stepperX.stop();
+      xHomed = true;  // Set homing variable true
+      limitSwitch1Pressed = false; 
+      cycleCount++;
+    }
+  }
+  else if (!yMoved) {
+    stepperY.moveTo(distance); // Move 25 steps (pulses) each iteration
+    stepperY.run();
+    if (stepperY.distanceToGo() == 0) {
+      yMoved = true;
+      distance += 100; // Increment distance for the next movement
+      stepperY.stop();
+    }
+  }
+  else if (count != 3 && !complete) {
+    if (cycleCount % 2 == 0) {
+      //stepperX.setSpeed(-300);
+      stepperX.setSpeed(300); // Move in one direction a short distance
+    }
+    else {
+      stepperX.setSpeed(-300);
+      //stepperX.move(1000); // Move in the opposite direction a short distance
+    }
+    stepperX.run();
+    
+    if (limitSwitch2Pressed) {  // When switch 2 is pressed, stop the motor
+      stepperX.stop();
+      limitSwitch2Pressed = false;
+      xHomed = false;
+      count++;
+      yMoved = false;
+      cycleCount++; // Increment cycle count
+    }
+    if (count == 3) {
+      complete = true;
+    }
+  } 
+}
+
+void limitSwitch1ISR() {
+    if (digitalRead(limitSwitch1) == LOW) {
+      limitSwitch1Pressed = true;
+    }
+}
+
+void limitSwitch2ISR() {
+    if (digitalRead(limitSwitch2) == LOW) {
+      limitSwitch2Pressed = true;
+    }
+}
